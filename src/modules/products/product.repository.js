@@ -11,7 +11,7 @@ export const countAll = (filter = {}) => Product.countDocuments(filter);
 export const create = (data) => Product.create(data);
 
 export const updateById = (id, updates) =>
-  Product.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+  Product.findByIdAndUpdate(id, updates, { returnDocument: 'after', runValidators: true });
 
 export const deleteById = (id) => Product.findByIdAndDelete(id);
 export const findAll = ({ filter = {}, skip = 0, limit = 20, sort = '-createdAt' }) => {
