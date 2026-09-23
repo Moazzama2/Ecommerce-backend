@@ -30,7 +30,14 @@ export const getCart = async (userId) => {
       const product = await productRepository.findById(item.productId);
       return {
         productId: item.productId,
-        product: product ? { name: product.name, slug: product.slug } : null,
+        product: product
+          ? {
+              name: product.name,
+              slug: product.slug,
+              images: product.images,
+              stock: product.stock,
+            }
+          : null,
         quantity: item.quantity,
         price: item.price,
         itemSubtotal: item.price * item.quantity,

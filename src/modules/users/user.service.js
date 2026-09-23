@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import ApiError from '../../utils/ApiError.js';
-import { generateAccessToken, generateRefreshToken } from '../../utils/token.js';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../utils/token.js';
 import * as userRepository from './user.repository.js';
 
 const sanitizeUser = (user) => ({
@@ -31,6 +31,33 @@ export const login = async ({ email, password }) => {
   await userRepository.updateRefreshToken(user._id, refreshToken);
 
   return { accessToken, refreshToken, user: sanitizeUser(user) };
+};
+
+// ============================================================
+// REFRESH — exchange a valid refresh token for a new token pair.
+// The token must match the one stored on the user document, so a
+// newer login, password change or deleted account revokes it.
+// Both tokens are rotated on every refresh.
+// ============================================================
+export const refresh = async (refreshToken) => {
+  if (!refreshToken) throw new ApiError(401, 'Refresh token missing');
+
+  let payload;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch {
+    throw new ApiError(401, 'Invalid or expired refresh token');
+  }
+
+  const user = await userRepository.findById(payload.id);
+  if (!user) throw new ApiError(401, 'User not found');
+  if (user.refreshToken !== refreshToken) throw new ApiError(401, 'Refresh token revoked');
+
+  const newAccessToken = generateAccessToken(user);
+  const newRefreshToken = generateRefreshToken(user);
+  await userRepository.updateRefreshToken(user._id, newRefreshToken);
+
+  return { accessToken: newAccessToken, refreshToken: newRefreshToken, user: sanitizeUser(user) };
 };
 
 export const changePassword = async (userId, { currentPassword, newPassword }) => {

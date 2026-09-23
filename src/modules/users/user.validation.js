@@ -11,6 +11,11 @@ export const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+// Optional because web clients renew via the httpOnly cookie only.
+export const refreshSchema = Joi.object({
+  refreshToken: Joi.string().optional(),
+});
+
 export const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
   newPassword: Joi.string().min(8).required(),
