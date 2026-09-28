@@ -39,6 +39,9 @@ const orderSchema = new mongoose.Schema(
       enum: ['unpaid', 'paid'],
       default: 'unpaid',
     },
+    // Set when Stripe confirms the charge (see modules/payments).
+    paymentIntentId: { type: String },
+    paidAt: { type: Date },
   },
   { timestamps: true }
 );

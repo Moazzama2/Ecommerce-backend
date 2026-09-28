@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
     "morgan": "^1.12.1",
+    "stripe": "^22.6.2",
     "winston": "^3.19.0"
   }
 }

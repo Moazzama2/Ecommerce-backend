@@ -18,3 +18,16 @@ export const findAllWithFilter = ({ filter = {}, skip = 0, limit = 20, sort = '-
 
 export const countAll = (filter = {}) => Order.countDocuments(filter);
 export const cancel = (id) => Order.findByIdAndUpdate(id, { status: 'cancelled' }, { new: true });
+
+// Stripe confirmed the money arrived (webhook / verify endpoint).
+// Idempotent: marking an already-paid order again is a no-op in effect.
+export const markPaid = (id, paymentIntentId) =>
+  Order.findByIdAndUpdate(
+    id,
+    {
+      paymentStatus: 'paid',
+      paidAt: new Date(),
+      ...(paymentIntentId ? { paymentIntentId } : {}),
+    },
+    { new: true },
+  );

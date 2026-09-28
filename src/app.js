@@ -8,6 +8,8 @@ import errorMiddleware from './middlewares/error.middleware.js';
 import categoryRoutes from './modules/category/category.routes.js';
 import cartRoutes from './modules/carts/cart.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
+import paymentRoutes from './modules/payments/payment.routes.js';
+import { webhook as stripeWebhook } from './modules/payments/payment.controller.js';
 import logger, { morganStream } from './utils/logger.js';
 
 const app = express();
@@ -22,6 +24,18 @@ app.use(
   })
 );
 
+// ============================================================
+// STRIPE WEBHOOK — must run BEFORE express.json()
+//
+// Stripe signs the *raw* body; JSON-parsing it first would break
+// signature verification ("Invalid webhook signature").
+// ============================================================
+app.post(
+  '/api/payments/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhook
+);
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
@@ -31,6 +45,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {
