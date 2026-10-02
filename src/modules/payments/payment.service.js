@@ -7,6 +7,7 @@ import {
   toMinorUnits,
 } from '../../config/stripe.js';
 import * as orderRepository from '../orders/order.repository.js';
+import { notifyPaymentReceived } from '../notifications/notification.service.js';
 
 // ============================================================
 // PAYMENTS — Stripe PaymentIntents
@@ -46,6 +47,28 @@ const assertOrderPayable = (order, userId) => {
 };
 
 // ============================================================
+// markPaid + "Payment received" notification.
+//
+// markPaid is idempotent and can be reached from two places for the
+// same charge (webhook AND /payments/verify), so the notification is
+// only emitted on the real unpaid → paid transition.
+// ============================================================
+const markPaidAndNotify = async (orderId, paymentIntentId) => {
+  if (!orderId) return null;
+
+  const existing = await orderRepository.findByIdLean(orderId);
+  const alreadyPaid = existing?.paymentStatus === 'paid';
+
+  const order = await orderRepository.markPaid(orderId, paymentIntentId);
+
+  if (!alreadyPaid && order) {
+    await notifyPaymentReceived(order);
+  }
+
+  return order;
+};
+
+// ============================================================
 // 1. CREATE PAYMENT INTENT — POST /api/payments/intent
 // ============================================================
 export const createPaymentIntent = async (userId, { orderId }) => {
@@ -71,7 +94,7 @@ export const createPaymentIntent = async (userId, { orderId }) => {
 
   // The charge already went through (e.g. webhook not processed yet).
   if (intent.status === 'succeeded') {
-    await orderRepository.markPaid(String(order._id), intent.id);
+    await markPaidAndNotify(String(order._id), intent.id);
     throw new ApiError(400, 'This order is already paid.');
   }
 
@@ -102,7 +125,7 @@ export const verifyPayment = async (userId, { intentId }) => {
   const orderId = metadata.orderId;
 
   if (intent.status === 'succeeded') {
-    const order = await orderRepository.markPaid(orderId, intent.id);
+    const order = await markPaidAndNotify(orderId, intent.id);
     return {
       orderId,
       paymentIntentId: intent.id,
@@ -153,7 +176,7 @@ export const handleWebhook = async (rawBody, signature) => {
       const intent = event.data.object;
       const orderId = intent.metadata?.orderId;
       if (orderId) {
-        await orderRepository.markPaid(orderId, intent.id);
+        await markPaidAndNotify(orderId, intent.id);
         logger.info(
           `Stripe: order ${orderId} marked paid (intent ${intent.id}, ${intent.amount} ${intent.currency})`,
         );

@@ -2,6 +2,7 @@ import ApiError from '../../utils/ApiError.js';
 import * as orderRepository from './order.repository.js';
 import * as cartService from '../carts/cart.service.js';
 import * as productRepository from '../products/product.repository.js';
+import { notifyOrderStatusChanged } from '../notifications/notification.service.js';
 
 // Place order with addresses
 export const placeOrder = async (userId, { shippingAddress, billingAddress }) => {
@@ -46,6 +47,9 @@ export const placeOrder = async (userId, { shippingAddress, billingAddress }) =>
   // Clear user's cart
   await cartService.clearCart(userId);
 
+  // "Order placed" notification (best effort — see notification.service).
+  await notifyOrderStatusChanged(order);
+
   return order;
 };
 
@@ -84,7 +88,12 @@ export const updateOrderStatus = async (orderId, newStatus) => {
     throw new ApiError(400, `Cannot change from ${order.status} to ${newStatus}`);
   }
 
-  return orderRepository.updateStatus(orderId, newStatus);
+  const updatedOrder = await orderRepository.updateStatus(orderId, newStatus);
+
+  // Tell the customer the new state (processing / shipped / ...).
+  await notifyOrderStatusChanged(updatedOrder);
+
+  return updatedOrder;
 };
 
 // Cancel order (restore stock)
@@ -108,7 +117,11 @@ export const cancelOrder = async (orderId, userId) => {
     });
   }
 
-  return orderRepository.cancel(orderId);
+  const cancelledOrder = await orderRepository.cancel(orderId);
+
+  await notifyOrderStatusChanged(cancelledOrder);
+
+  return cancelledOrder;
 };
 // Admin: Get all orders with filtering and sorting
 export const getAllOrders = async ({ page = 1, limit = 20, sortBy = 'newest', productId }) => {

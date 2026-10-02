@@ -31,3 +31,7 @@ export const markPaid = (id, paymentIntentId) =>
     },
     { new: true },
   );
+
+// Lightweight lookup (no populate) for internal checks like "already paid?".
+export const findByIdLean = (id) =>
+  Order.findById(id).select('userId status paymentStatus totalAmount');
