@@ -23,3 +23,16 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
   const result = await notificationService.markAllAsRead(req.user.id);
   res.status(200).json({ success: true, data: result });
 });
+
+// ============================================================
+// ADMIN (dashboard) — notification log + broadcast an announcement
+// ============================================================
+export const adminList = asyncHandler(async (req, res) => {
+  const result = await notificationService.adminListNotifications(req.query);
+  res.status(200).json({ success: true, data: result });
+});
+
+export const broadcast = asyncHandler(async (req, res) => {
+  const result = await notificationService.broadcastAnnouncement(req.body);
+  res.status(201).json({ success: true, data: result });
+});

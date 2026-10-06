@@ -3,6 +3,19 @@ import * as orderRepository from './order.repository.js';
 import * as cartService from '../carts/cart.service.js';
 import * as productRepository from '../products/product.repository.js';
 import { notifyOrderStatusChanged } from '../notifications/notification.service.js';
+import { pushToAdmins } from '../../realtime/socket.js';
+
+// Live feed for the dashboard: every order mutation is mirrored to the
+// `admins` room (fire-and-forget — same never-throw contract as the
+// notification pushes).
+const broadcastOrder = (event, order) => {
+  if (!order) return;
+  try {
+    pushToAdmins(event, order);
+  } catch {
+    /* live delivery is best effort */
+  }
+};
 
 // Place order with addresses
 export const placeOrder = async (userId, { shippingAddress, billingAddress }) => {
@@ -50,6 +63,8 @@ export const placeOrder = async (userId, { shippingAddress, billingAddress }) =>
   // "Order placed" notification (best effort — see notification.service).
   await notifyOrderStatusChanged(order);
 
+  broadcastOrder('order:new', order);
+
   return order;
 };
 
@@ -67,6 +82,13 @@ export const getOrderById = async (orderId, userId) => {
     throw new ApiError(403, 'Cannot view others orders');
   }
 
+  return order;
+};
+
+// Admin: single order, no ownership check (used by the dashboard).
+export const getAnyOrderById = async (orderId) => {
+  const order = await orderRepository.findById(orderId);
+  if (!order) throw new ApiError(404, 'Order not found');
   return order;
 };
 
@@ -92,6 +114,8 @@ export const updateOrderStatus = async (orderId, newStatus) => {
 
   // Tell the customer the new state (processing / shipped / ...).
   await notifyOrderStatusChanged(updatedOrder);
+
+  broadcastOrder('order:updated', updatedOrder);
 
   return updatedOrder;
 };
@@ -121,15 +145,22 @@ export const cancelOrder = async (orderId, userId) => {
 
   await notifyOrderStatusChanged(cancelledOrder);
 
+  broadcastOrder('order:updated', cancelledOrder);
+
   return cancelledOrder;
 };
 // Admin: Get all orders with filtering and sorting
-export const getAllOrders = async ({ page = 1, limit = 20, sortBy = 'newest', productId }) => {
+export const getAllOrders = async ({ page = 1, limit = 20, sortBy = 'newest', productId, status }) => {
   const filter = {};
 
   // Filter by product if provided
   if (productId) {
     filter['items.productId'] = productId;
+  }
+
+  // Filter by order status (pending / processing / shipped / ...)
+  if (status) {
+    filter.status = status;
   }
 
   // Determine sort direction

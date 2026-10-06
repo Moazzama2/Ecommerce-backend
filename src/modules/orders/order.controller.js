@@ -16,6 +16,12 @@ export const getOrderById = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: order });
 });
 
+// Admin: same lookup without the ownership check (dashboard detail page).
+export const getAnyOrderById = asyncHandler(async (req, res) => {
+  const order = await orderService.getAnyOrderById(req.params.id);
+  res.status(200).json({ success: true, data: order });
+});
+
 export const updateOrderStatus = asyncHandler(async (req, res) => {
   const order = await orderService.updateOrderStatus(req.params.id, req.body.status);
   res.status(200).json({ success: true, data: order });

@@ -58,3 +58,30 @@ export const deleteAccount = asyncHandler(async (req, res) => {
   res.clearCookie('refreshToken'); // log them out too
   res.status(200).json({ success: true, data: result });
 });
+
+// ============================================================
+// LOGOUT — drop the refresh cookie and revoke the stored token.
+// ============================================================
+export const logout = asyncHandler(async (req, res) => {
+  const result = await userService.logout(req.user.id, req.cookies?.refreshToken);
+  res.clearCookie('refreshToken');
+  res.status(200).json({ success: true, data: result });
+});
+
+// ============================================================
+// ADMIN — user management (dashboard)
+// ============================================================
+export const adminListUsers = asyncHandler(async (req, res) => {
+  const result = await userService.adminListUsers(req.query);
+  res.status(200).json({ success: true, data: result });
+});
+
+export const adminUpdateRole = asyncHandler(async (req, res) => {
+  const user = await userService.adminUpdateRole(req.params.id, req.body.role, req.user.id);
+  res.status(200).json({ success: true, data: user });
+});
+
+export const adminSetStatus = asyncHandler(async (req, res) => {
+  const user = await userService.adminSetStatus(req.params.id, req.body.isActive, req.user.id);
+  res.status(200).json({ success: true, data: user });
+});

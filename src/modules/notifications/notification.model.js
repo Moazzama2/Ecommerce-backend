@@ -16,7 +16,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['order_status', 'payment'],
+      enum: ['order_status', 'payment', 'announcement'],
       default: 'order_status',
     },
     title: { type: String, required: true, trim: true },

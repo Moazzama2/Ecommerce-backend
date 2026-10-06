@@ -18,6 +18,9 @@ import { verifyAccessToken } from '../utils/token.js';
 let io = null;
 
 const roomFor = (userId) => `user:${userId}`;
+// Every signed-in admin joins this room; the dashboard listens here for
+// live order events (see pushToAdmins below).
+const ADMIN_ROOM = 'admins';
 
 /**
  * Reads the token from `socket.handshake.auth.token` (the Flutter client
@@ -39,6 +42,7 @@ const authenticate = (socket, next) => {
   try {
     const decoded = verifyAccessToken(token);
     socket.userId = decoded.id;
+    socket.role = decoded.role; // 'admin' → joined to the admins room
     socket.tokenExp = decoded.exp; // seconds → used to drop dead sessions
     return next();
   } catch {
@@ -81,6 +85,7 @@ export const initSocket = (httpServer, corsOptions = {}) => {
     const { userId } = socket;
 
     socket.join(roomFor(userId));
+    if (socket.role === 'admin') socket.join(ADMIN_ROOM);
     scheduleExpiry(socket);
 
     logger.info(`Socket connected for user ${userId} (${socket.id})`);
@@ -108,6 +113,22 @@ export const pushToUser = (userId, event, payload) => {
     return true;
   } catch (error) {
     logger.warn(`Socket emit failed for user ${userId}: ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Fire-and-forget emit to every connected admin (the dashboard).
+ * Same contract as pushToUser: never throws, false = no live delivery.
+ */
+export const pushToAdmins = (event, payload) => {
+  if (!io) return false;
+
+  try {
+    io.to(ADMIN_ROOM).emit(event, payload);
+    return true;
+  } catch (error) {
+    logger.warn(`Socket emit to admins failed: ${error.message}`);
     return false;
   }
 };

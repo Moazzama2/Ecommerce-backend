@@ -10,6 +10,8 @@ import cartRoutes from './modules/carts/cart.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import paymentRoutes from './modules/payments/payment.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
+import statsRoutes from './modules/stats/stats.routes.js';
+import { corsOptions } from './utils/cors.js';
 import { webhook as stripeWebhook } from './modules/payments/payment.controller.js';
 import logger, { morganStream } from './utils/logger.js';
 
@@ -51,7 +53,13 @@ app.use((req, _res, next) => {
   next();
 });
 app.use(cookieParser());
-app.use(cors({ origin: true, credentials: true }));
+
+// ============================================================
+// CORS — allow-list shared with the WebSocket server (utils/cors.js).
+// Credentials (the httpOnly refresh cookie) are in play, so origins
+// must be explicit: set CORS_ORIGINS in .env, comma separated.
+// ============================================================
+app.use(cors(corsOptions));
 
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
@@ -60,6 +68,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/stats', statsRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

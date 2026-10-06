@@ -1,6 +1,7 @@
 import ApiError from '../../utils/ApiError.js';
 import logger from '../../utils/logger.js';
 import * as notificationRepository from './notification.repository.js';
+import * as userRepository from '../users/user.repository.js';
 import { pushToUser } from '../../realtime/socket.js';
 import { sendPushToUser } from '../../realtime/fcm.js';
 
@@ -184,4 +185,44 @@ export const markAsRead = async (userId, notificationId) => {
 export const markAllAsRead = async (userId) => {
   await notificationRepository.markAllAsRead(userId);
   return { unreadCount: 0 };
+};
+
+// ============================================================
+// ADMIN — announcements + the dashboard's notification log
+// ============================================================
+
+export const adminListNotifications = async ({ page = 1, limit = 20 } = {}) => {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20));
+  const skip = (safePage - 1) * safeLimit;
+
+  const [notifications, total] = await Promise.all([
+    notificationRepository.findAllWithFilter({ skip, limit: safeLimit }),
+    notificationRepository.countAll(),
+  ]);
+
+  return {
+    notifications,
+    pagination: {
+      total,
+      page: safePage,
+      pages: Math.ceil(total / safeLimit),
+      limit: safeLimit,
+    },
+  };
+};
+
+/**
+ * Send one announcement to every active user — persisted to their feed
+ * and pushed live (socket) + by FCM, exactly like an order notification.
+ * Individual failures never fail the request (persist swallows them).
+ */
+export const broadcastAnnouncement = async ({ title, body }) => {
+  const userIds = await userRepository.findAllIds();
+
+  await Promise.all(
+    userIds.map((userId) => persist({ userId, type: 'announcement', title, body })),
+  );
+
+  return { recipients: userIds.length, title, body };
 };

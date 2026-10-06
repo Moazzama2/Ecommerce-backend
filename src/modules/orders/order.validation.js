@@ -17,6 +17,7 @@ export const getAllOrdersQuerySchema = Joi.object({
   limit: Joi.number().min(1).default(20),
   sortBy: Joi.string().valid('newest', 'oldest').default('newest'),
   productId: Joi.string().length(24).hex(), // Optional product filter
+  status: Joi.string().valid('pending', 'processing', 'shipped', 'delivered', 'cancelled'),
 });
 export const updateOrderStatusSchema = Joi.object({
   status: Joi.string().valid('pending', 'processing', 'shipped', 'delivered', 'cancelled').required(),

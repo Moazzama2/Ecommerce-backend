@@ -7,6 +7,11 @@ const sanitizeUser = (user) => ({
   id: user._id,
   name: user.name,
   email: user.email,
+  // The dashboard needs the role for its route guards and the profile
+  // menu; the Flutter app can ignore both.
+  role: user.role,
+  isActive: user.isActive !== false,
+  createdAt: user.createdAt,
 });
 
 export const signup = async ({ name, email, password }) => {
@@ -25,6 +30,7 @@ export const login = async ({ email, password }) => {
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new ApiError(401, 'Invalid email or password');
+  if (user.isActive === false) throw new ApiError(403, 'Account disabled');
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
@@ -52,6 +58,7 @@ export const refresh = async (refreshToken) => {
   const user = await userRepository.findById(payload.id);
   if (!user) throw new ApiError(401, 'User not found');
   if (user.refreshToken !== refreshToken) throw new ApiError(401, 'Refresh token revoked');
+  if (user.isActive === false) throw new ApiError(401, 'Account disabled');
 
   const newAccessToken = generateAccessToken(user);
   const newRefreshToken = generateRefreshToken(user);
@@ -102,4 +109,65 @@ export const deleteAccount = async (name) => {
   const user = await userRepository.deleteUser(name);
   if (!user) throw new ApiError(404, 'User not found');
   return { message: 'Account deleted successfully' };
+};
+
+// ============================================================
+// LOGOUT — revoke the refresh token behind the current session.
+// The refresh token lives in an httpOnly cookie, so the client can't
+// read it; the server matches on the cookie value instead. If it was
+// already rotated away (another tab refreshed), this is a no-op.
+// ============================================================
+export const logout = async (userId, refreshToken) => {
+  if (refreshToken) {
+    await userRepository.clearRefreshToken(userId, refreshToken);
+  }
+  return { message: 'Logged out successfully' };
+};
+
+// ============================================================
+// ADMIN — user management for the dashboard
+// ============================================================
+
+export const adminListUsers = async ({ page = 1, limit = 20, search } = {}) => {
+  const filter = userRepository.setSearchFilter(search);
+  const skip = (page - 1) * limit;
+
+  const [users, total] = await Promise.all([
+    userRepository.findAllWithFilter({ filter, skip, limit: Number(limit) }),
+    userRepository.countAll(filter),
+  ]);
+
+  return {
+    users: users.map(sanitizeUser),
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * Promote / demote. `actorId` guards the classic footgun: an admin
+ * removing their own admin rights and locking everyone out.
+ */
+export const adminUpdateRole = async (userId, role, actorId) => {
+  if (userId === actorId && role !== 'admin') {
+    throw new ApiError(400, 'You cannot remove your own admin role');
+  }
+
+  const user = await userRepository.setRole(userId, role);
+  if (!user) throw new ApiError(404, 'User not found');
+  return sanitizeUser(user);
+};
+
+export const adminSetStatus = async (userId, isActive, actorId) => {
+  if (userId === actorId && !isActive) {
+    throw new ApiError(400, 'You cannot disable your own account');
+  }
+
+  const user = await userRepository.setActive(userId, isActive);
+  if (!user) throw new ApiError(404, 'User not found');
+  return sanitizeUser(user);
 };

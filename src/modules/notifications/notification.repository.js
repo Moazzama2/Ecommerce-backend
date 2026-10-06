@@ -30,3 +30,17 @@ export const markAllAsRead = (userId) =>
     { userId, read: false },
     { $set: { read: true, readAt: new Date() } }
   );
+
+// ---------- Admin (dashboard) ----------
+
+// Newest-first across ALL users (populated with the recipient).
+export const findAllWithFilter = ({ skip = 0, limit = 20 } = {}) =>
+  Notification.find()
+    .populate('userId', 'name email')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+export const countAll = () => Notification.countDocuments();
+
+export const createMany = (docs) => Notification.insertMany(docs);

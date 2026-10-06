@@ -4,6 +4,7 @@ import app from './app.js';
 import connectDB from './config/db.js';
 import logger from './utils/logger.js';
 import { initSocket } from './realtime/socket.js';
+import { corsOptions } from './utils/cors.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -12,12 +13,10 @@ connectDB()
     // Socket.io needs the raw HTTP server, not just the Express app.
     const server = createServer(app);
 
-    // Same origin policy as the REST API (reflect the request origin,
-    // allow credentials) so the Flutter web client can connect too.
-    initSocket(server, {
-      origin: true,
-      credentials: true,
-    });
+    // Same origin policy as the REST API (allow-list + credentials, see
+    // utils/cors.js) so the dashboard and the Flutter web client can
+    // connect, and nobody else can.
+    initSocket(server, corsOptions);
 
     server.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
   })

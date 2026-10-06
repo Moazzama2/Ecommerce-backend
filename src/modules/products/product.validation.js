@@ -6,6 +6,8 @@ export const createProductSchema = Joi.object({
   price: Joi.number().min(0).required(),
   category: Joi.string().required(),
   stock: Joi.number().min(0).required(),
+  // Image URLs (no upload endpoint yet — the dashboard pastes links).
+  images: Joi.array().items(Joi.string().uri({ scheme: ['http', 'https'] })).max(10).optional(),
 });
 
 export const updateProductSchema = Joi.object({
@@ -14,5 +16,5 @@ export const updateProductSchema = Joi.object({
   price: Joi.number().min(0),
   category: Joi.string(),
   stock: Joi.number().min(0),
-  
+  images: Joi.array().items(Joi.string().uri({ scheme: ['http', 'https'] })).max(10),
 }).min(1);
