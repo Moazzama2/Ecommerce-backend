@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
 import ApiError from '../../utils/ApiError.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../utils/token.js';
+import { localDayRange } from '../../utils/dateRange.js';
 import * as userRepository from './user.repository.js';
 
 const sanitizeUser = (user) => ({
@@ -128,8 +130,13 @@ export const logout = async (userId, refreshToken) => {
 // ADMIN — user management for the dashboard
 // ============================================================
 
-export const adminListUsers = async ({ page = 1, limit = 20, search } = {}) => {
+export const adminListUsers = async ({ page = 1, limit = 20, search, from, to } = {}) => {
   const filter = userRepository.setSearchFilter(search);
+
+  // Joined-date window (dashboard: "how many customers joined in X").
+  const createdAt = localDayRange({ from, to });
+  if (createdAt) filter.createdAt = createdAt;
+
   const skip = (page - 1) * limit;
 
   const [users, total] = await Promise.all([
@@ -146,6 +153,19 @@ export const adminListUsers = async ({ page = 1, limit = 20, search } = {}) => {
       pages: Math.ceil(total / limit),
     },
   };
+};
+
+/**
+ * Admin: a single account for the customer detail screen (name, email,
+ * role, status, joined-at). sanitizeUser strips the password hash and
+ * the refresh token, exactly like the list endpoint.
+ */
+export const adminGetUser = async (userId) => {
+  // A malformed id would surface as a Mongo CastError (HTTP 500).
+  if (!mongoose.Types.ObjectId.isValid(userId)) throw new ApiError(404, 'User not found');
+  const user = await userRepository.findById(userId);
+  if (!user) throw new ApiError(404, 'User not found');
+  return sanitizeUser(user);
 };
 
 /**

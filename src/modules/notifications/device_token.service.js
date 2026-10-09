@@ -47,3 +47,7 @@ export const unregisterDevice = async (userId, token) => {
 
   return { removed: result.deletedCount > 0 };
 };
+
+// Distinct accounts that have at least one device registered — the
+// "all devices where our app is installed" audience for announcements.
+export const listUserIdsWithDevices = () => DeviceToken.distinct('userId');

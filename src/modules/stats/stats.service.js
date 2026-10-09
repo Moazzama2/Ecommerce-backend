@@ -26,30 +26,31 @@ export const getOverview = async ({ days = 30 } = {}) => {
   const [
     totals,
     orderStatusCounts,
-    revenueRows30,
-    ordersRows30,
+    revenueRows,
+    ordersRows,
     recentOrders,
     topProducts,
   ] = await Promise.all([
     statsRepository.findTotals(),
     statsRepository.findOrderStatusCounts(),
-    statsRepository.findDailySeries({ days: 30, mode: 'revenue' }),
-    statsRepository.findDailySeries({ days: 30, mode: 'orders' }),
+    statsRepository.findDailySeries({ days: range, mode: 'revenue' }),
+    statsRepository.findDailySeries({ days: range, mode: 'orders' }),
     statsRepository.findRecentOrders(5),
     statsRepository.findTopProducts(5),
   ]);
 
-  const revenueSeries = fillSeries(revenueRows30, 30);
-  const ordersSeries = fillSeries(ordersRows30, 30);
+  const revenueSeries = fillSeries(revenueRows, range);
+  const ordersSeries = fillSeries(ordersRows, range);
 
   return {
     totals,
     orderStatusCounts,
-    // 30 points always; the client slices (last 7) when it wants a week.
+    // One dense point per day across the requested window; the client
+    // slices this down when a chart is set to a shorter range.
     charts: {
       revenue: revenueSeries,
       orders: ordersSeries,
-      rangeDays: 30,
+      rangeDays: range,
       requestedRange: range,
     },
     recentOrders,

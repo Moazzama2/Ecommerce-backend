@@ -11,6 +11,7 @@ import orderRoutes from './modules/orders/order.routes.js';
 import paymentRoutes from './modules/payments/payment.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import statsRoutes from './modules/stats/stats.routes.js';
+import uploadRoutes from './modules/uploads/upload.routes.js';
 import { corsOptions } from './utils/cors.js';
 import { webhook as stripeWebhook } from './modules/payments/payment.controller.js';
 import logger, { morganStream } from './utils/logger.js';
@@ -69,6 +70,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/stats', statsRoutes);
+// Product image uploads → Cloudinary (admin only, see modules/uploads).
+app.use('/api/uploads', uploadRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

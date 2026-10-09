@@ -1,6 +1,7 @@
 import ApiError from '../../utils/ApiError.js';
 import logger from '../../utils/logger.js';
 import * as notificationRepository from './notification.repository.js';
+import * as deviceTokenService from './device_token.service.js';
 import * as userRepository from '../users/user.repository.js';
 import { pushToUser } from '../../realtime/socket.js';
 import { sendPushToUser } from '../../realtime/fcm.js';
@@ -213,16 +214,28 @@ export const adminListNotifications = async ({ page = 1, limit = 20 } = {}) => {
 };
 
 /**
- * Send one announcement to every active user — persisted to their feed
- * and pushed live (socket) + by FCM, exactly like an order notification.
+ * Send one announcement — persisted to each recipient's feed and pushed
+ * live (socket) + by FCM, exactly like an order notification.
  * Individual failures never fail the request (persist swallows them).
+ *
+ * `audience` picks the recipient set:
+ *   active_accounts → every enabled account (the default)
+ *   devices         → every account that has the app installed on a
+ *                     device (i.e. has an FCM token registered)
  */
-export const broadcastAnnouncement = async ({ title, body }) => {
-  const userIds = await userRepository.findAllIds();
+export const broadcastAnnouncement = async ({
+  title,
+  body,
+  audience = 'active_accounts',
+}) => {
+  const userIds =
+    audience === 'devices'
+      ? await deviceTokenService.listUserIdsWithDevices()
+      : await userRepository.findAllIds();
 
   await Promise.all(
     userIds.map((userId) => persist({ userId, type: 'announcement', title, body })),
   );
 
-  return { recipients: userIds.length, title, body };
+  return { recipients: userIds.length, audience, title, body };
 };

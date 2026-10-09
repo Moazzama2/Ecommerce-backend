@@ -32,6 +32,14 @@ export const setSearchFilter = (search) => {
   return { $or: [{ name: regex }, { email: regex }] };
 };
 
+// Ids behind a name/email search — lets the orders list resolve
+// "search by customer" without an aggregation ($lookup) pipeline.
+export const findIdsBySearch = async (search, limit = 500) => {
+  if (!search) return [];
+  const docs = await User.find(setSearchFilter(search)).select('_id').limit(limit);
+  return docs.map((doc) => doc._id);
+};
+
 export const setRole = (id, role) =>
   User.findByIdAndUpdate(id, { role }, { new: true, runValidators: true });
 
@@ -50,4 +58,7 @@ export const clearRefreshToken = (id, refreshToken) =>
     { new: true },
   );
 
-export const findAllIds = () => User.find({ isActive: true }).select('_id');
+export const findAllIds = async () => {
+  const docs = await User.find({ isActive: true }).select('_id').lean();
+  return docs.map((doc) => doc._id);
+};

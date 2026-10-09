@@ -18,7 +18,9 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const product = await productService.updateProduct(req.params.id, req.body);
+  // _id identifies the document; everything else is the patch payload.
+  const { _id: id, ...updates } = req.body;
+  const product = await productService.updateProduct(id, updates);
   res.status(200).json({ success: true, data: product });
 });
 

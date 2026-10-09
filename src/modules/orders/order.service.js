@@ -1,9 +1,12 @@
+import mongoose from 'mongoose';
 import ApiError from '../../utils/ApiError.js';
 import * as orderRepository from './order.repository.js';
 import * as cartService from '../carts/cart.service.js';
 import * as productRepository from '../products/product.repository.js';
+import * as userRepository from '../users/user.repository.js';
 import { notifyOrderStatusChanged } from '../notifications/notification.service.js';
 import { pushToAdmins } from '../../realtime/socket.js';
+import { localDayRange } from '../../utils/dateRange.js';
 
 // Live feed for the dashboard: every order mutation is mirrored to the
 // `admins` room (fire-and-forget — same never-throw contract as the
@@ -150,7 +153,17 @@ export const cancelOrder = async (orderId, userId) => {
   return cancelledOrder;
 };
 // Admin: Get all orders with filtering and sorting
-export const getAllOrders = async ({ page = 1, limit = 20, sortBy = 'newest', productId, status }) => {
+export const getAllOrders = async ({
+  page = 1,
+  limit = 20,
+  sortBy = 'newest',
+  productId,
+  status,
+  userId,
+  search,
+  from,
+  to,
+}) => {
   const filter = {};
 
   // Filter by product if provided
@@ -161,6 +174,36 @@ export const getAllOrders = async ({ page = 1, limit = 20, sortBy = 'newest', pr
   // Filter by order status (pending / processing / shipped / ...)
   if (status) {
     filter.status = status;
+  }
+
+  // One customer only (the dashboard's customer detail screen).
+  if (userId) {
+    filter.userId = userId;
+  }
+
+  // Placed-on window; both bounds inclusive at day granularity.
+  const createdAt = localDayRange({ from, to });
+  if (createdAt) {
+    filter.createdAt = createdAt;
+  }
+
+  // Free-text search: the order id itself and/or the customer behind it.
+  const term = String(search || '').trim();
+  if (term) {
+    const clauses = [];
+
+    if (mongoose.Types.ObjectId.isValid(term)) {
+      clauses.push({ _id: term });
+    }
+
+    const customerIds = await userRepository.findIdsBySearch(term);
+    if (customerIds.length) {
+      clauses.push({ userId: { $in: customerIds } });
+    }
+
+    // No id and no matching customer → an impossible clause keeps the
+    // result empty instead of quietly ignoring the search term.
+    filter.$or = clauses.length ? clauses : [{ _id: null }];
   }
 
   // Determine sort direction

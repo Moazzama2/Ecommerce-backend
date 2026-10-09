@@ -76,6 +76,12 @@ export const adminListUsers = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: result });
 });
 
+// Admin: one account (customer detail screen).
+export const adminGetUser = asyncHandler(async (req, res) => {
+  const user = await userService.adminGetUser(req.params.id);
+  res.status(200).json({ success: true, data: user });
+});
+
 export const adminUpdateRole = asyncHandler(async (req, res) => {
   const user = await userService.adminUpdateRole(req.params.id, req.body.role, req.user.id);
   res.status(200).json({ success: true, data: user });

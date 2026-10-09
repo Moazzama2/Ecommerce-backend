@@ -3,6 +3,7 @@ import ApiError from '../../utils/ApiError.js';
 import * as productRepository from './product.repository.js';
 import logger from '../../utils/logger.js';
 import Category from '../category/category.model.js';
+import { cleanupCloudinaryImages } from '../../config/cloudinary.js';
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -75,13 +76,28 @@ export const createProduct = async (data, adminId) => {
 };
 
 export const updateProduct = async (id, updates) => {
+  // The old image list is needed to clean up Cloudinary assets the
+  // admin dropped from the form — fetch first, patch second.
+  const existing = await productRepository.findById(id);
+  if (!existing) throw new ApiError(404, 'Product not found');
+
   const product = await productRepository.updateById(id, updates);
   if (!product) throw new ApiError(404, 'Product not found');
+
+  if (Array.isArray(updates.images)) {
+    const kept = new Set(updates.images);
+    cleanupCloudinaryImages((existing.images || []).filter((url) => !kept.has(url)));
+  }
+
   return product;
 };
 
 export const deleteProduct = async (id) => {
   const product = await productRepository.deleteById(id);
   if (!product) throw new ApiError(404, 'Product not found');
+
+  // The product is gone — its Cloudinary assets go too (best effort).
+  cleanupCloudinaryImages(product.images);
+
   return { message: 'Product deleted successfully' };
 };

@@ -32,6 +32,13 @@ export const adminListUsersSchema = Joi.object({
   page: Joi.number().min(1).default(1),
   limit: Joi.number().min(1).max(100).default(20),
   search: Joi.string().allow('').max(100).optional(),
+  // Joined-date window, 'YYYY-MM-DD', both days inclusive.
+  from: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 export const adminRoleSchema = Joi.object({

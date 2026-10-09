@@ -29,6 +29,8 @@ router.delete('/delete', authMiddleware, userController.deleteAccount);
 
 // Admin (dashboard) — user management
 router.get('/admin/all', authMiddleware, isAdmin, validateQuery(adminListUsersSchema), userController.adminListUsers);
+// Registered after /admin/all so "all" never gets captured as an :id.
+router.get('/admin/:id', authMiddleware, isAdmin, userController.adminGetUser);
 router.patch('/admin/:id/role', authMiddleware, isAdmin, validate(adminRoleSchema), userController.adminUpdateRole);
 router.patch('/admin/:id/status', authMiddleware, isAdmin, validate(adminStatusSchema), userController.adminSetStatus);
 
